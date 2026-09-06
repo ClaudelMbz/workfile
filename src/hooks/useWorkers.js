@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
+import { API_BASE } from '../apiBase'
 
-async function request(url, options) {
-  const res = await fetch(url, {
+async function request(path, options) {
+  const res = await fetch(`${API_BASE}${path}`, {
     headers: { 'Content-Type': 'application/json' },
     ...options,
   })
@@ -86,7 +87,7 @@ export function useWorkers() {
     )
     // On gère la réponse nous-mêmes : même en cas d'échec (502), l'API renvoie
     // le worker avec objective.error rempli, qu'on veut quand même afficher.
-    const res = await fetch(`/api/workers/${id}/objective/refresh`, { method: 'POST' })
+    const res = await fetch(`${API_BASE}/api/workers/${id}/objective/refresh`, { method: 'POST' })
     const worker = await res.json().catch(() => null)
     if (worker) {
       setWorkers((prev) => prev.map((w) => (w.id === id ? worker : w)))

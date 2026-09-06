@@ -1,5 +1,6 @@
 import 'dotenv/config'
 import express from 'express'
+import cors from 'cors'
 import { randomUUID } from 'crypto'
 import { readWorkers, withWorkers, pushHistory } from './store.js'
 import { listProviders, getProvider } from './providers/index.js'
@@ -7,6 +8,11 @@ import { listProviders, getProvider } from './providers/index.js'
 const app = express()
 const PORT = process.env.PORT || 3001
 
+// Nécessaire dès que le frontend est servi depuis une autre origine que
+// l'API (ex. frontend sur GitHub Pages, backend sur Render/Railway/un VPS).
+// Outil mono-utilisateur sans authentification : pas de restriction fine à
+// apporter ici, seulement à autoriser la requête cross-origin elle-même.
+app.use(cors())
 app.use(express.json())
 
 // GET /api/objective-types — catalogue des fournisseurs d'objectif disponibles

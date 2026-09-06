@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { API_BASE } from '../apiBase'
 
 // Catalogue des fournisseurs d'objectif (TikTok followers, saisie manuelle,
 // et tout ce qui viendra s'y ajouter côté serveur) — chargé une fois.
@@ -7,7 +8,7 @@ export function useObjectiveTypes() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('/api/objective-types')
+    fetch(`${API_BASE}/api/objective-types`)
       .then((res) => res.json())
       .then(setTypes)
       .catch(() => setTypes([]))
