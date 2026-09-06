@@ -5,10 +5,11 @@ import { fileURLToPath } from 'url'
 
 // En local (npm run dev:all / npm run server) : fichier JSON sur disque.
 // Sur Vercel : pas de disque persistant entre les invocations d'une fonction
-// serverless, donc on bascule sur Vercel KV (Redis géré, gratuit, sans
-// carte). `VERCEL` est injecté automatiquement par la plateforme.
-const usingKV = !!process.env.VERCEL
-const kv = usingKV ? (await import('@vercel/kv')).kv : null
+// serverless, donc on bascule sur une base Redis Upstash (marketplace
+// Vercel Storage, gratuit, sans carte) dès que ses identifiants sont
+// présents — peu importe la plateforme d'hébergement exacte.
+const usingKV = !!(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN)
+const kv = usingKV ? (await import('@upstash/redis')).Redis.fromEnv() : null
 const KV_KEY = 'workers'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
