@@ -74,10 +74,22 @@ function DeltaBadge({ delta, compact = false }) {
   )
 }
 
+// Affiche juste le chemin utile d'une URL (ex. "@nom-de-chaine" plutôt que
+// "https://www.youtube.com/@nom-de-chaine") pour ne pas déborder de la carte.
+function shortenValue(value) {
+  if (typeof value !== 'string' || !/^https?:\/\//.test(value)) return value
+  try {
+    const u = new URL(value)
+    return u.pathname.replace(/^\//, '') || u.hostname
+  } catch {
+    return value
+  }
+}
+
 function objectiveLabel(provider, config) {
   const primaryField = provider?.fields?.find((f) => f.primary)
   if (primaryField && config?.[primaryField.key]) {
-    return `${provider.icon} ${primaryField.prefix || ''}${config[primaryField.key]}`
+    return `${provider.icon} ${primaryField.prefix || ''}${shortenValue(config[primaryField.key])}`
   }
   return `${provider?.icon || '🎯'} ${provider?.label || 'Objectif'}`
 }
