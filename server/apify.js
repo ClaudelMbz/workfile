@@ -81,3 +81,30 @@ export async function fetchYoutubeChannelStats(channelUrl) {
     videoCount: typeof channel.channelTotalVideos === 'number' ? channel.channelTotalVideos : null,
   }
 }
+
+// Actor "apify/instagram-scraper", en mode "details" (infos de profil
+// uniquement — pas les posts/reels) : followersCount et postsCount dans le
+// même appel, resultsLimit à 1 pour un coût minimal.
+export async function fetchInstagramProfileStats(profileUrl) {
+  const items = await apifyRunSync('apify~instagram-scraper', {
+    resultsType: 'details',
+    directUrls: [profileUrl],
+    resultsLimit: 1,
+  })
+
+  if (!Array.isArray(items) || items.length === 0) {
+    throw new Error(
+      `Aucune donnée retournée pour "${profileUrl}" — vérifie que le profil Instagram existe et est public.`
+    )
+  }
+
+  const profile = items[0]
+  if (!profile || typeof profile.followersCount !== 'number') {
+    throw new Error('Réponse Apify inattendue : le nombre de followers est introuvable.')
+  }
+
+  return {
+    followers: profile.followersCount,
+    postsCount: typeof profile.postsCount === 'number' ? profile.postsCount : null,
+  }
+}
