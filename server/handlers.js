@@ -4,7 +4,7 @@
 // deux ces mêmes fonctions. Chacune renvoie { status, body } — à l'appelant
 // de le traduire dans le format de sa plateforme.
 import { randomUUID } from 'crypto'
-import { readWorkers, withWorkers, pushHistory } from './store.js'
+import { readWorkers, withWorkers, pushHistory, readWorkflows, withWorkflows } from './store.js'
 import { listProviders, getProvider } from './providers/index.js'
 
 // Coût : optionnel, mais s'il est fourni il doit être un nombre positif ou nul.
@@ -243,4 +243,64 @@ export async function refreshObjective(id) {
 
   if (!updated) return { status: 404, body: { error: 'Worker introuvable.' } }
   return { status: fetchError ? 502 : 200, body: updated }
+}
+
+// ---- Sauvegardes de fichiers (workflows n8n/Make/Zapier, etc.) ----
+
+const MAX_WORKFLOW_SIZE = 2 * 1024 * 1024 // 2 Mo, largement suffisant pour un export de workflow
+
+export async function listWorkflows() {
+  const workflows = await readWorkflows()
+  // Jamais le contenu dans la liste — juste de quoi afficher nom/date/taille.
+  const meta = workflows.map(({ content, ...rest }) => rest)
+  return { status: 200, body: meta }
+}
+
+export async function createWorkflow(body) {
+  const { name, filename, content } = body || {}
+  if (!name || !name.trim()) {
+    return { status: 400, body: { error: 'Le nom est obligatoire.' } }
+  }
+  if (!content || typeof content !== 'string') {
+    return { status: 400, body: { error: 'Fichier vide ou invalide.' } }
+  }
+  const size = Buffer.byteLength(content, 'utf-8')
+  if (size > MAX_WORKFLOW_SIZE) {
+    return { status: 400, body: { error: 'Fichier trop volumineux (2 Mo maximum).' } }
+  }
+
+  const workflow = {
+    id: randomUUID(),
+    name: name.trim(),
+    filename: (filename || `${name.trim()}.json`).trim(),
+    size,
+    uploadedAt: new Date().toISOString(),
+    content,
+  }
+
+  await withWorkflows((workflows) => {
+    workflows.unshift(workflow)
+  })
+
+  const { content: _dropped, ...meta } = workflow
+  return { status: 201, body: meta }
+}
+
+export async function getWorkflow(id) {
+  const workflows = await readWorkflows()
+  const workflow = workflows.find((w) => w.id === id)
+  if (!workflow) return { status: 404, body: { error: 'Sauvegarde introuvable.' } }
+  return { status: 200, body: workflow }
+}
+
+export async function deleteWorkflow(id) {
+  const found = await withWorkflows((workflows) => {
+    const idx = workflows.findIndex((w) => w.id === id)
+    if (idx === -1) return false
+    workflows.splice(idx, 1)
+    return true
+  })
+
+  if (!found) return { status: 404, body: { error: 'Sauvegarde introuvable.' } }
+  return { status: 204, body: null }
 }

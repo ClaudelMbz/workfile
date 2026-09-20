@@ -5,7 +5,21 @@ import WorkerForm from './components/WorkerForm'
 import WorkerList from './components/WorkerList'
 import Modal from './components/Modal'
 import ObjectiveModal from './components/ObjectiveModal'
+import Dashboard from './components/Dashboard'
+import WorkflowsPanel from './components/WorkflowsPanel'
+import { runWithConcurrencyLimit } from './utils/concurrency'
 import './App.css'
+
+const VIEWS = [
+  { key: 'workers', label: 'Workers' },
+  { key: 'dashboard', label: 'Tableau de bord' },
+  { key: 'workflows', label: 'Sauvegardes' },
+]
+
+// Apify limite les comptes standards à 5 runs d'actor simultanés. On reste
+// prudemment sous cette limite pour laisser de la marge (ex. un refresh
+// manuel déclenché pendant que l'auto-refresh au chargement tourne encore).
+const CONCURRENT_REFRESH_LIMIT = 4
 
 export default function App() {
   const {
@@ -20,6 +34,7 @@ export default function App() {
     updateObjectiveValue,
   } = useWorkers()
   const { objectiveTypes } = useObjectiveTypes()
+  const [view, setView] = useState('workers')
   const [isAddOpen, setAddOpen] = useState(false)
   const [editTarget, setEditTarget] = useState(null) // worker en cours de modification
   const [objectiveTarget, setObjectiveTarget] = useState(null) // worker en cours d'édition d'objectif
@@ -27,18 +42,20 @@ export default function App() {
   // À chaque chargement de la page, on relance immédiatement la mesure de
   // tous les objectifs "automatiques" (pas ceux en saisie manuelle), une
   // seule fois — pour que les données affichées soient toujours à jour dès
-  // l'ouverture, sans attendre un clic sur ⟳.
+  // l'ouverture, sans attendre un clic sur ⟳. Limité à
+  // CONCURRENT_REFRESH_LIMIT en parallèle : au-delà, Apify rejette les runs
+  // excédentaires (limite de compte), donc on met le reste en file plutôt
+  // que de tout lancer d'un coup.
   const didAutoRefresh = useRef(false)
   useEffect(() => {
     if (loading || didAutoRefresh.current || objectiveTypes.length === 0) return
     didAutoRefresh.current = true
-    workers.forEach((worker) => {
-      if (!worker.objective) return
+    const toRefresh = workers.filter((worker) => {
+      if (!worker.objective) return false
       const provider = objectiveTypes.find((p) => p.id === worker.objective.providerId)
-      if (provider && !provider.manualEntry) {
-        refreshObjective(worker.id)
-      }
+      return provider && !provider.manualEntry
     })
+    runWithConcurrencyLimit(toRefresh, CONCURRENT_REFRESH_LIMIT, (worker) => refreshObjective(worker.id))
   }, [loading, objectiveTypes, workers, refreshObjective])
 
   async function handleAdd(data) {
@@ -54,14 +71,29 @@ export default function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <div>
-          <h1>Workers</h1>
-          <p>
-            {workers.length} worker{workers.length !== 1 ? 's' : ''} enregistré
-            {workers.length !== 1 ? 's' : ''}
-          </p>
+        <div className="app-header-left">
+          <div>
+            <h1>Workers</h1>
+            {view === 'workers' && (
+              <p>
+                {workers.length} worker{workers.length !== 1 ? 's' : ''} enregistré
+                {workers.length !== 1 ? 's' : ''}
+              </p>
+            )}
+          </div>
+          <nav className="app-nav">
+            {VIEWS.map((v) => (
+              <button
+                key={v.key}
+                className={`app-nav-item${view === v.key ? ' active' : ''}`}
+                onClick={() => setView(v.key)}
+              >
+                {v.label}
+              </button>
+            ))}
+          </nav>
         </div>
-        {workers.length > 0 && (
+        {view === 'workers' && workers.length > 0 && (
           <button
             className="btn btn-primary btn-add"
             onClick={() => setAddOpen(true)}
@@ -74,21 +106,34 @@ export default function App() {
       </header>
 
       <main className="app-main">
-        {error && <p className="page-error">Impossible de charger les workers : {error}</p>}
-        {loading ? (
-          <p className="page-loading">Chargement…</p>
-        ) : (
-          <WorkerList
-            workers={workers}
-            onRemove={removeWorker}
-            onEdit={setEditTarget}
-            onAddClick={() => setAddOpen(true)}
-            objectiveTypes={objectiveTypes}
-            onEditObjective={setObjectiveTarget}
-            onRefreshObjective={refreshObjective}
-            onUpdateObjectiveValue={updateObjectiveValue}
-          />
+        {view === 'workers' && (
+          <>
+            {error && <p className="page-error">Impossible de charger les workers : {error}</p>}
+            {loading ? (
+              <p className="page-loading">Chargement…</p>
+            ) : (
+              <WorkerList
+                workers={workers}
+                onRemove={removeWorker}
+                onEdit={setEditTarget}
+                onAddClick={() => setAddOpen(true)}
+                objectiveTypes={objectiveTypes}
+                onEditObjective={setObjectiveTarget}
+                onRefreshObjective={refreshObjective}
+                onUpdateObjectiveValue={updateObjectiveValue}
+              />
+            )}
+          </>
         )}
+
+        {view === 'dashboard' &&
+          (loading ? (
+            <p className="page-loading">Chargement…</p>
+          ) : (
+            <Dashboard workers={workers} objectiveTypes={objectiveTypes} />
+          ))}
+
+        {view === 'workflows' && <WorkflowsPanel />}
       </main>
 
       {isAddOpen && (

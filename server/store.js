@@ -10,21 +10,26 @@ import { fileURLToPath } from 'url'
 // présents — peu importe la plateforme d'hébergement exacte.
 const usingKV = !!(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN)
 const kv = usingKV ? (await import('@upstash/redis')).Redis.fromEnv() : null
-const KV_KEY = 'workers'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const DATA_DIR = path.join(__dirname, 'data')
-const DATA_FILE = path.join(DATA_DIR, 'workers.json')
 
-async function ensureDataFile() {
-  if (!existsSync(DATA_DIR)) await mkdir(DATA_DIR, { recursive: true })
-  if (!existsSync(DATA_FILE)) await writeFile(DATA_FILE, '[]', 'utf-8')
+// Bas niveau, générique : une "collection" est juste un tableau JSON stocké
+// sous un nom (clé Redis en prod, fichier <nom>.json en local).
+function collectionFile(name) {
+  return path.join(DATA_DIR, `${name}.json`)
 }
 
-async function readRaw() {
-  if (usingKV) return (await kv.get(KV_KEY)) || []
-  await ensureDataFile()
-  const raw = await readFile(DATA_FILE, 'utf-8')
+async function ensureCollectionFile(name) {
+  if (!existsSync(DATA_DIR)) await mkdir(DATA_DIR, { recursive: true })
+  const file = collectionFile(name)
+  if (!existsSync(file)) await writeFile(file, '[]', 'utf-8')
+}
+
+async function readCollection(name) {
+  if (usingKV) return (await kv.get(name)) || []
+  await ensureCollectionFile(name)
+  const raw = await readFile(collectionFile(name), 'utf-8')
   try {
     return JSON.parse(raw)
   } catch {
@@ -32,13 +37,41 @@ async function readRaw() {
   }
 }
 
-async function writeRaw(workers) {
+async function writeCollection(name, items) {
   if (usingKV) {
-    await kv.set(KV_KEY, workers)
+    await kv.set(name, items)
     return
   }
-  await ensureDataFile()
-  await writeFile(DATA_FILE, JSON.stringify(workers, null, 2), 'utf-8')
+  await ensureCollectionFile(name)
+  await writeFile(collectionFile(name), JSON.stringify(items, null, 2), 'utf-8')
+}
+
+// Sérialise les lecture-modification-écriture d'une collection, une file
+// d'attente par collection. Voir le commentaire détaillé sur `withWorkers`
+// plus bas pour le pourquoi.
+function makeQueue() {
+  let queue = Promise.resolve()
+  return function withCollection(name, mutate) {
+    const task = queue.then(async () => {
+      const items = await readCollection(name)
+      const result = await mutate(items)
+      await writeCollection(name, items)
+      return result
+    })
+    queue = task.then(
+      () => undefined,
+      () => undefined
+    )
+    return task
+  }
+}
+
+async function readRaw() {
+  return readCollection('workers')
+}
+
+async function writeRaw(workers) {
+  return writeCollection('workers', workers)
 }
 
 // Nombre de mesures conservées par objectif, pour le delta et le sparkline.
@@ -112,20 +145,31 @@ export async function writeWorkers(workers) {
 // faible pour un usage mono-utilisateur à faible trafic, mais pas une vraie
 // garantie transactionnelle (il faudrait une structure Redis par worker pour
 // ça, pas juste un blob JSON).
-let writeQueue = Promise.resolve()
+const withWorkersQueue = makeQueue()
 
 export function withWorkers(mutate) {
-  const task = writeQueue.then(async () => {
-    const workers = await readWorkers()
+  return withWorkersQueue('workers', async (raw) => {
+    // `raw` n'est pas migré — on migre, on laisse `mutate` travailler sur la
+    // version migrée (elle peut la modifier en place), puis on resynchronise
+    // `raw` dessus avant l'écriture (c'est `raw`, pas la valeur de retour de
+    // `mutate`, que `withCollection` persiste).
+    const workers = raw.map((w) => ({ ...w, objective: migrateObjective(w.objective) }))
     const result = await mutate(workers)
-    await writeWorkers(workers)
+    raw.length = 0
+    raw.push(...workers)
     return result
   })
-  // On avale l'erreur ici pour ne jamais bloquer la file ; l'appelant reçoit
-  // quand même le rejet via `task`.
-  writeQueue = task.then(
-    () => undefined,
-    () => undefined
-  )
-  return task
+}
+
+// Sauvegardes de fichiers de workflow (petits exports JSON n8n/Make/Zapier,
+// etc.) : nom + contenu, avec re-téléchargement possible plus tard. Même
+// mécanique de stockage que les workers, dans sa propre collection.
+const withWorkflowsQueue = makeQueue()
+
+export async function readWorkflows() {
+  return readCollection('workflows')
+}
+
+export function withWorkflows(mutate) {
+  return withWorkflowsQueue('workflows', mutate)
 }
