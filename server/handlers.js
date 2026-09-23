@@ -4,7 +4,15 @@
 // deux ces mêmes fonctions. Chacune renvoie { status, body } — à l'appelant
 // de le traduire dans le format de sa plateforme.
 import { randomUUID } from 'crypto'
-import { readWorkers, withWorkers, pushHistory, readWorkflows, withWorkflows } from './store.js'
+import {
+  readWorkers,
+  withWorkers,
+  pushHistory,
+  readWorkflows,
+  withWorkflows,
+  readProjects,
+  withProjects,
+} from './store.js'
 import { listProviders, getProvider } from './providers/index.js'
 
 // Coût : optionnel, mais s'il est fourni il doit être un nombre positif ou nul.
@@ -13,6 +21,17 @@ function parseCost(cost) {
   const n = Number(cost)
   if (!Number.isFinite(n) || n < 0) return { ok: false }
   return { ok: true, value: n }
+}
+
+// Projet : optionnel (null = "sans projet"), mais s'il est fourni il doit
+// désigner un projet existant.
+async function resolveProjectId(projectId) {
+  if (projectId === undefined || projectId === null || projectId === '') {
+    return { ok: true, value: null }
+  }
+  const projects = await readProjects()
+  if (!projects.some((p) => p.id === projectId)) return { ok: false }
+  return { ok: true, value: projectId }
 }
 
 export async function getObjectiveTypes() {
@@ -24,7 +43,7 @@ export async function getWorkers() {
 }
 
 export async function createWorker(body) {
-  const { name, role, email, cost } = body || {}
+  const { name, role, email, cost, projectId } = body || {}
   if (!name || !name.trim()) {
     return { status: 400, body: { error: 'Le nom est obligatoire.' } }
   }
@@ -32,6 +51,8 @@ export async function createWorker(body) {
   if (!parsedCost.ok) {
     return { status: 400, body: { error: 'Le coût doit être un nombre positif ou nul.' } }
   }
+  const project = await resolveProjectId(projectId)
+  if (!project.ok) return { status: 400, body: { error: 'Projet introuvable.' } }
 
   const worker = {
     id: randomUUID(),
@@ -39,6 +60,7 @@ export async function createWorker(body) {
     role: (role || '').trim(),
     email: (email || '').trim(),
     cost: parsedCost.value,
+    projectId: project.value,
     createdAt: new Date().toISOString(),
     objective: null,
   }
@@ -50,7 +72,7 @@ export async function createWorker(body) {
 }
 
 export async function updateWorker(id, body) {
-  const { name, role, email, cost } = body || {}
+  const { name, role, email, cost, projectId } = body || {}
   if (!name || !name.trim()) {
     return { status: 400, body: { error: 'Le nom est obligatoire.' } }
   }
@@ -58,6 +80,10 @@ export async function updateWorker(id, body) {
   if (!parsedCost.ok) {
     return { status: 400, body: { error: 'Le coût doit être un nombre positif ou nul.' } }
   }
+  // Seulement si le client envoie explicitement projectId : un client qui
+  // l'omet ne doit pas faire sortir le worker de son projet par accident.
+  const project = projectId === undefined ? null : await resolveProjectId(projectId)
+  if (project && !project.ok) return { status: 400, body: { error: 'Projet introuvable.' } }
 
   const updated = await withWorkers((workers) => {
     const worker = workers.find((w) => w.id === id)
@@ -66,6 +92,7 @@ export async function updateWorker(id, body) {
     worker.role = (role || '').trim()
     worker.email = (email || '').trim()
     worker.cost = parsedCost.value
+    if (project) worker.projectId = project.value
     return worker
   })
 
@@ -302,5 +329,73 @@ export async function deleteWorkflow(id) {
   })
 
   if (!found) return { status: 404, body: { error: 'Sauvegarde introuvable.' } }
+  return { status: 204, body: null }
+}
+
+// ---- Projets (dossiers de workers) ----
+
+const DEFAULT_PROJECT_COLOR = '#c084fc'
+
+function parseProject(body) {
+  const { name, color } = body || {}
+  if (!name || !String(name).trim()) return { error: 'Le nom du projet est obligatoire.' }
+  return {
+    name: String(name).trim(),
+    color: /^#[0-9a-fA-F]{6}$/.test(color || '') ? color : DEFAULT_PROJECT_COLOR,
+  }
+}
+
+export async function listProjects() {
+  return { status: 200, body: await readProjects() }
+}
+
+export async function createProject(body) {
+  const parsed = parseProject(body)
+  if (parsed.error) return { status: 400, body: { error: parsed.error } }
+
+  const project = {
+    id: randomUUID(),
+    name: parsed.name,
+    color: parsed.color,
+    createdAt: new Date().toISOString(),
+  }
+  await withProjects((projects) => {
+    projects.push(project)
+  })
+  return { status: 201, body: project }
+}
+
+export async function updateProject(id, body) {
+  const parsed = parseProject(body)
+  if (parsed.error) return { status: 400, body: { error: parsed.error } }
+
+  const updated = await withProjects((projects) => {
+    const project = projects.find((p) => p.id === id)
+    if (!project) return null
+    project.name = parsed.name
+    project.color = parsed.color
+    return project
+  })
+
+  if (!updated) return { status: 404, body: { error: 'Projet introuvable.' } }
+  return { status: 200, body: updated }
+}
+
+// Supprimer un projet ne supprime jamais ses workers : ils repassent
+// simplement en "sans projet".
+export async function deleteProject(id) {
+  const found = await withProjects((projects) => {
+    const idx = projects.findIndex((p) => p.id === id)
+    if (idx === -1) return false
+    projects.splice(idx, 1)
+    return true
+  })
+  if (!found) return { status: 404, body: { error: 'Projet introuvable.' } }
+
+  await withWorkers((workers) => {
+    workers.forEach((w) => {
+      if (w.projectId === id) w.projectId = null
+    })
+  })
   return { status: 204, body: null }
 }

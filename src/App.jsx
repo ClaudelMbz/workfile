@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { useWorkers } from './hooks/useWorkers'
 import { useObjectiveTypes } from './hooks/useObjectiveTypes'
+import { useProjects } from './hooks/useProjects'
 import WorkerForm from './components/WorkerForm'
 import WorkerList from './components/WorkerList'
 import Modal from './components/Modal'
 import ObjectiveModal from './components/ObjectiveModal'
 import Dashboard from './components/Dashboard'
+import ProjectModal from './components/ProjectModal'
+import ConfirmModal from './components/ConfirmModal'
 import WorkflowsPanel from './components/WorkflowsPanel'
 import { runWithConcurrencyLimit } from './utils/concurrency'
 import './App.css'
@@ -32,12 +35,16 @@ export default function App() {
     setObjective,
     refreshObjective,
     updateObjectiveValue,
+    detachProject,
   } = useWorkers()
   const { objectiveTypes } = useObjectiveTypes()
+  const { projects, addProject, updateProject, removeProject } = useProjects()
   const [view, setView] = useState('workers')
   const [isAddOpen, setAddOpen] = useState(false)
   const [editTarget, setEditTarget] = useState(null) // worker en cours de modification
   const [objectiveTarget, setObjectiveTarget] = useState(null) // worker en cours d'édition d'objectif
+  const [projectModal, setProjectModal] = useState(null) // null | 'new' | projet à modifier
+  const [projectToDelete, setProjectToDelete] = useState(null)
 
   // À chaque chargement de la page, on relance immédiatement la mesure de
   // tous les objectifs "automatiques" (pas ceux en saisie manuelle), une
@@ -61,6 +68,18 @@ export default function App() {
   async function handleAdd(data) {
     await addWorker(data)
     setAddOpen(false)
+  }
+
+  async function handleSaveProject(data) {
+    if (projectModal === 'new') await addProject(data)
+    else await updateProject(projectModal.id, data)
+  }
+
+  async function handleDeleteProject() {
+    const id = projectToDelete.id
+    setProjectToDelete(null)
+    await removeProject(id)
+    detachProject(id)
   }
 
   async function handleEdit(data) {
@@ -93,15 +112,21 @@ export default function App() {
             ))}
           </nav>
         </div>
-        {view === 'workers' && workers.length > 0 && (
-          <button
-            className="btn btn-primary btn-add"
-            onClick={() => setAddOpen(true)}
-            aria-label="Ajouter un worker"
-          >
-            <span className="btn-add-icon">+</span>
-            Ajouter
-          </button>
+        {view === 'workers' && (workers.length > 0 || projects.length > 0) && (
+          <div className="app-header-actions">
+            <button className="btn btn-ghost" onClick={() => setProjectModal('new')} aria-label="Nouveau projet">
+              <span className="btn-add-icon">+</span>
+              Projet
+            </button>
+            <button
+              className="btn btn-primary btn-add"
+              onClick={() => setAddOpen(true)}
+              aria-label="Ajouter un worker"
+            >
+              <span className="btn-add-icon">+</span>
+              Ajouter
+            </button>
+          </div>
         )}
       </header>
 
@@ -114,6 +139,9 @@ export default function App() {
             ) : (
               <WorkerList
                 workers={workers}
+                projects={projects}
+                onEditProject={setProjectModal}
+                onDeleteProject={setProjectToDelete}
                 onRemove={removeWorker}
                 onEdit={setEditTarget}
                 onAddClick={() => setAddOpen(true)}
@@ -130,7 +158,7 @@ export default function App() {
           (loading ? (
             <p className="page-loading">Chargement…</p>
           ) : (
-            <Dashboard workers={workers} objectiveTypes={objectiveTypes} />
+            <Dashboard workers={workers} objectiveTypes={objectiveTypes} projects={projects} />
           ))}
 
         {view === 'workflows' && <WorkflowsPanel />}
@@ -138,7 +166,7 @@ export default function App() {
 
       {isAddOpen && (
         <Modal title="Ajouter un worker" onClose={() => setAddOpen(false)}>
-          <WorkerForm onSubmit={handleAdd} onCancel={() => setAddOpen(false)} />
+          <WorkerForm projects={projects} onSubmit={handleAdd} onCancel={() => setAddOpen(false)} />
         </Modal>
       )}
 
@@ -146,11 +174,30 @@ export default function App() {
         <Modal title="Modifier le worker" onClose={() => setEditTarget(null)}>
           <WorkerForm
             initialValues={editTarget}
+            projects={projects}
             submitLabel="Enregistrer"
             onSubmit={handleEdit}
             onCancel={() => setEditTarget(null)}
           />
         </Modal>
+      )}
+
+      {projectModal && (
+        <ProjectModal
+          project={projectModal === 'new' ? null : projectModal}
+          onSave={handleSaveProject}
+          onClose={() => setProjectModal(null)}
+        />
+      )}
+
+      {projectToDelete && (
+        <ConfirmModal
+          title="Supprimer ce projet ?"
+          message={`Le projet "${projectToDelete.name}" sera supprimé. Ses workers ne sont pas supprimés : ils repassent dans « Sans projet ».`}
+          confirmLabel="Supprimer"
+          onConfirm={handleDeleteProject}
+          onClose={() => setProjectToDelete(null)}
+        />
       )}
 
       {objectiveTarget && (

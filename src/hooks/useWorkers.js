@@ -35,20 +35,26 @@ export function useWorkers() {
     refresh()
   }, [refresh])
 
-  async function addWorker({ name, role, email, cost }) {
+  async function addWorker({ name, role, email, cost, projectId }) {
     const worker = await request('/api/workers', {
       method: 'POST',
-      body: JSON.stringify({ name, role, email, cost }),
+      body: JSON.stringify({ name, role, email, cost, projectId }),
     })
     setWorkers((prev) => [worker, ...prev])
   }
 
-  async function updateWorker(id, { name, role, email, cost }) {
+  async function updateWorker(id, { name, role, email, cost, projectId }) {
     const worker = await request(`/api/workers/${id}`, {
       method: 'PUT',
-      body: JSON.stringify({ name, role, email, cost }),
+      body: JSON.stringify({ name, role, email, cost, projectId }),
     })
     setWorkers((prev) => prev.map((w) => (w.id === id ? worker : w)))
+  }
+
+  // Le serveur remet déjà les workers d'un projet supprimé en "sans projet" ;
+  // on répercute ça localement sans refaire un aller-retour.
+  function detachProject(projectId) {
+    setWorkers((prev) => prev.map((w) => (w.projectId === projectId ? { ...w, projectId: null } : w)))
   }
 
   async function removeWorker(id) {
@@ -113,5 +119,6 @@ export function useWorkers() {
     removeObjective,
     refreshObjective,
     updateObjectiveValue,
+    detachProject,
   }
 }

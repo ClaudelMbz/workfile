@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { computeStats, summarizeWorkers } from '../utils/stats'
 
 function formatNumber(n) {
   return new Intl.NumberFormat('fr-FR').format(Math.round(n))
@@ -13,67 +14,36 @@ function formatSigned(n, decimals = 0) {
   return `${sign}${n.toFixed(decimals)}`
 }
 
-// Croissance = dernière mesure - première mesure de l'historique conservé ;
-// rate/jour = cette croissance ramenée à la durée écoulée entre les deux ;
-// efficacité = croissance obtenue par euro dépensé (seulement si positive et
-// qu'un coût est renseigné — sinon la division n'a pas de sens).
-function computeStats(worker, objectiveTypes) {
-  const obj = worker.objective
-  if (!obj) return null
-  const provider = objectiveTypes.find((p) => p.id === obj.providerId)
-  const history = obj.history || []
-
-  let growth = null
-  let ratePerDay = null
-  if (history.length >= 2) {
-    const first = history[0]
-    const last = history[history.length - 1]
-    growth = last.value - first.value
-    const days = Math.max((new Date(last.at) - new Date(first.at)) / 86400000, 1 / 24)
-    ratePerDay = growth / days
-  }
-
-  const efficiency = worker.cost && growth != null && growth > 0 ? growth / worker.cost : null
-
-  return { provider, current: obj.current, target: obj.target, growth, ratePerDay, efficiency }
-}
-
 const COLUMNS = [
   { key: 'ratePerDay', label: 'Par jour' },
   { key: 'growth', label: 'Croissance' },
   { key: 'efficiency', label: 'Efficacité (€)' },
 ]
 
-export default function Dashboard({ workers, objectiveTypes }) {
+export default function Dashboard({ workers, objectiveTypes, projects = [] }) {
   const [sortKey, setSortKey] = useState('ratePerDay')
+  const [projectFilter, setProjectFilter] = useState('all') // 'all' | 'none' | id de projet
+
+  const projectsById = useMemo(() => new Map(projects.map((p) => [p.id, p])), [projects])
+
+  const filteredWorkers = useMemo(() => {
+    if (projectFilter === 'all') return workers
+    if (projectFilter === 'none') return workers.filter((w) => !w.projectId || !projectsById.has(w.projectId))
+    return workers.filter((w) => w.projectId === projectFilter)
+  }, [workers, projectFilter, projectsById])
 
   const rows = useMemo(
     () =>
-      workers
+      filteredWorkers
         .map((worker) => ({ worker, stats: computeStats(worker, objectiveTypes) }))
         .filter((r) => r.stats),
-    [workers, objectiveTypes]
+    [filteredWorkers, objectiveTypes]
   )
 
-  const platformTotals = useMemo(() => {
-    const totals = new Map()
-    rows.forEach(({ stats }) => {
-      if (!stats.provider || stats.current == null) return
-      const key = stats.provider.id
-      const entry = totals.get(key) || {
-        icon: stats.provider.icon,
-        label: stats.provider.label,
-        total: 0,
-        count: 0,
-      }
-      entry.total += stats.current
-      entry.count += 1
-      totals.set(key, entry)
-    })
-    return Array.from(totals.values())
-  }, [rows])
-
-  const totalCost = useMemo(() => workers.reduce((sum, w) => sum + (w.cost || 0), 0), [workers])
+  const summary = useMemo(
+    () => summarizeWorkers(filteredWorkers, objectiveTypes),
+    [filteredWorkers, objectiveTypes]
+  )
 
   const sortedRows = useMemo(() => {
     return [...rows].sort((a, b) => {
@@ -86,21 +56,46 @@ export default function Dashboard({ workers, objectiveTypes }) {
     })
   }, [rows, sortKey])
 
+  const filter =
+    projects.length > 0 ? (
+      <div className="dashboard-filter">
+        <label htmlFor="dashboard-project">Projet</label>
+        <select id="dashboard-project" value={projectFilter} onChange={(e) => setProjectFilter(e.target.value)}>
+          <option value="all">Tous les projets</option>
+          {projects.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+          <option value="none">Sans projet</option>
+        </select>
+      </div>
+    ) : null
+
   if (rows.length === 0) {
     return (
-      <div className="empty-state">
-        <div className="empty-state-icon">📊</div>
-        <h2>Pas encore de données</h2>
-        <p>Ajoute un objectif à au moins un worker pour voir apparaître le tableau de bord.</p>
+      <div className="dashboard">
+        {filter}
+        <div className="empty-state">
+          <div className="empty-state-icon">📊</div>
+          <h2>Pas encore de données</h2>
+          <p>
+            {projectFilter === 'all'
+              ? 'Ajoute un objectif à au moins un worker pour voir apparaître le tableau de bord.'
+              : 'Aucun worker avec un objectif dans ce projet.'}
+          </p>
+        </div>
       </div>
     )
   }
 
   return (
     <div className="dashboard">
+      {filter}
+
       <div className="kpi-row">
-        {platformTotals.map((p) => (
-          <div className="kpi-tile" key={p.label}>
+        {summary.platforms.map((p) => (
+          <div className="kpi-tile" key={p.id}>
             <span className="kpi-icon">{p.icon}</span>
             <div>
               <div className="kpi-value">{formatNumber(p.total)}</div>
@@ -113,7 +108,7 @@ export default function Dashboard({ workers, objectiveTypes }) {
         <div className="kpi-tile">
           <span className="kpi-icon">💰</span>
           <div>
-            <div className="kpi-value">{formatCost(totalCost)}</div>
+            <div className="kpi-value">{formatCost(summary.totalCost)}</div>
             <div className="kpi-label">Coût total</div>
           </div>
         </div>
@@ -124,6 +119,7 @@ export default function Dashboard({ workers, objectiveTypes }) {
           <thead>
             <tr>
               <th>Worker</th>
+              {projects.length > 0 && <th>Projet</th>}
               <th>Plateforme</th>
               <th className="num">Actuel</th>
               {COLUMNS.map((col) => (
@@ -140,19 +136,34 @@ export default function Dashboard({ workers, objectiveTypes }) {
             </tr>
           </thead>
           <tbody>
-            {sortedRows.map(({ worker, stats }) => (
-              <tr key={worker.id}>
-                <td>{worker.name}</td>
-                <td>
-                  {stats.provider?.icon} {stats.provider?.label}
-                </td>
-                <td className="num">{stats.current != null ? formatNumber(stats.current) : '—'}</td>
-                <td className="num">{stats.ratePerDay != null ? `${formatSigned(stats.ratePerDay, 1)}/j` : '—'}</td>
-                <td className="num">{stats.growth != null ? formatSigned(stats.growth) : '—'}</td>
-                <td className="num">{stats.efficiency != null ? `${formatNumber(stats.efficiency)}/€` : '—'}</td>
-                <td className="num">{worker.cost ? formatCost(worker.cost) : '—'}</td>
-              </tr>
-            ))}
+            {sortedRows.map(({ worker, stats }) => {
+              const project = projectsById.get(worker.projectId)
+              return (
+                <tr key={worker.id}>
+                  <td>{worker.name}</td>
+                  {projects.length > 0 && (
+                    <td>
+                      {project ? (
+                        <span className="project-tag">
+                          <span className="project-dot" style={{ background: project.color }} aria-hidden="true" />
+                          {project.name}
+                        </span>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
+                  )}
+                  <td>
+                    {stats.provider?.icon} {stats.provider?.label}
+                  </td>
+                  <td className="num">{stats.current != null ? formatNumber(stats.current) : '—'}</td>
+                  <td className="num">{stats.ratePerDay != null ? `${formatSigned(stats.ratePerDay, 1)}/j` : '—'}</td>
+                  <td className="num">{stats.growth != null ? formatSigned(stats.growth) : '—'}</td>
+                  <td className="num">{stats.efficiency != null ? `${formatNumber(stats.efficiency)}/€` : '—'}</td>
+                  <td className="num">{worker.cost ? formatCost(worker.cost) : '—'}</td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </div>

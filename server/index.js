@@ -41,6 +41,11 @@ app.get('/api/workflows/:id/download', async (req, res) => {
   res.send(r.body.content)
 })
 
+app.get('/api/projects', async (req, res) => send(res, await handlers.listProjects()))
+app.post('/api/projects', async (req, res) => send(res, await handlers.createProject(req.body)))
+app.put('/api/projects/:id', async (req, res) => send(res, await handlers.updateProject(req.params.id, req.body)))
+app.delete('/api/projects/:id', async (req, res) => send(res, await handlers.deleteProject(req.params.id)))
+
 app.listen(PORT, () => {
   console.log(`API workers en écoute sur http://localhost:${PORT}`)
 })

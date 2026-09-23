@@ -1,10 +1,11 @@
 import { useState } from 'react'
 
-export default function WorkerForm({ initialValues, submitLabel = 'Ajouter', onSubmit, onCancel }) {
+export default function WorkerForm({ initialValues, projects = [], submitLabel = 'Ajouter', onSubmit, onCancel }) {
   const [name, setName] = useState(initialValues?.name || '')
   const [role, setRole] = useState(initialValues?.role || '')
   const [email, setEmail] = useState(initialValues?.email || '')
   const [cost, setCost] = useState(initialValues?.cost ?? '')
+  const [projectId, setProjectId] = useState(initialValues?.projectId || '')
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
 
@@ -20,7 +21,13 @@ export default function WorkerForm({ initialValues, submitLabel = 'Ajouter', onS
     }
     setSaving(true)
     try {
-      await onSubmit({ name, role, email, cost: cost === '' ? null : Number(cost) })
+      await onSubmit({
+        name,
+        role,
+        email,
+        cost: cost === '' ? null : Number(cost),
+        projectId: projectId || null,
+      })
     } catch (err) {
       setError(err.message)
       setSaving(false)
@@ -75,6 +82,19 @@ export default function WorkerForm({ initialValues, submitLabel = 'Ajouter', onS
           />
         </div>
       </div>
+      {projects.length > 0 && (
+        <div className="form-row">
+          <label htmlFor="project">Projet</label>
+          <select id="project" value={projectId} onChange={(e) => setProjectId(e.target.value)}>
+            <option value="">Sans projet</option>
+            {projects.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
       {error && <p className="form-error">{error}</p>}
       <div className="form-actions">
         <button type="button" className="btn btn-ghost" onClick={onCancel}>

@@ -173,3 +173,15 @@ export async function readWorkflows() {
 export function withWorkflows(mutate) {
   return withWorkflowsQueue('workflows', mutate)
 }
+
+// Projets (les "dossiers" qui regroupent des workers) : même mécanique de
+// stockage, dans leur propre collection.
+const withProjectsQueue = makeQueue()
+
+export async function readProjects() {
+  return readCollection('projects')
+}
+
+export function withProjects(mutate) {
+  return withProjectsQueue('projects', mutate)
+}
