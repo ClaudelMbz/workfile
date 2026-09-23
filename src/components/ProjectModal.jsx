@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import Modal from './Modal'
 
-export const PROJECT_COLORS = ['#c084fc', '#60a5fa', '#2dd4bf', '#4ade80', '#fbbf24', '#fb7185']
+const PROJECT_COLORS = ['#c084fc', '#60a5fa', '#2dd4bf', '#4ade80', '#fbbf24', '#fb7185']
 
 export default function ProjectModal({ project, onSave, onClose }) {
   const [name, setName] = useState(project?.name || '')

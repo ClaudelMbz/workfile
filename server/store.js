@@ -77,14 +77,40 @@ async function writeRaw(workers) {
 // Nombre de mesures conservées par objectif, pour le delta et le sparkline.
 export const MAX_HISTORY = 30
 
+// Série journalière longue durée : UNE valeur par jour (la dernière du jour),
+// sous forme compacte [["2026-09-23", 1234], ...]. Alimente le graphique de
+// croissance (par jour / mois / année) ; `history` ne garde que les 30
+// dernières mesures et ne remonte donc pas assez loin (chaque rechargement de
+// page en ajoute une). Taille bornée : ~730 jours ≈ 16 Ko par objectif.
+export const MAX_DAILY = 730
+
+function pushDaily(container, value, at) {
+  if (!container.daily) container.daily = []
+  const day = String(at).slice(0, 10) // date UTC
+  const last = container.daily[container.daily.length - 1]
+  if (last && last[0] === day) last[1] = value
+  else container.daily.push([day, value])
+  if (container.daily.length > MAX_DAILY) {
+    container.daily = container.daily.slice(-MAX_DAILY)
+  }
+}
+
+function dailyFromHistory(history = []) {
+  const days = new Map()
+  history.forEach(({ value, at }) => days.set(String(at).slice(0, 10), value))
+  return Array.from(days.entries())
+}
+
 // Ajoute une mesure à l'historique d'un objectif (borné à MAX_HISTORY, les
-// plus anciennes sont abandonnées en premier).
+// plus anciennes sont abandonnées en premier) et à sa série journalière.
+// Sert aussi bien à l'objectif qu'à sa métrique secondaire.
 export function pushHistory(objective, value, at) {
   if (!objective.history) objective.history = []
   objective.history.push({ value, at })
   if (objective.history.length > MAX_HISTORY) {
     objective.history = objective.history.slice(-MAX_HISTORY)
   }
+  pushDaily(objective, value, at)
 }
 
 // Ancien format d'objectif (avant que "TikTok followers" ne soit qu'un
@@ -115,6 +141,18 @@ function migrateObjective(objective) {
         migrated.current != null && migrated.lastCheckedAt
           ? [{ value: migrated.current, at: migrated.lastCheckedAt }]
           : [],
+    }
+  }
+
+  // Série journalière ajoutée après coup : on la reconstruit à partir de
+  // l'historique existant pour que le graphique ait des données tout de suite.
+  if (!migrated.daily) {
+    migrated = { ...migrated, daily: dailyFromHistory(migrated.history) }
+  }
+  if (migrated.secondary && !migrated.secondary.daily) {
+    migrated = {
+      ...migrated,
+      secondary: { ...migrated.secondary, daily: dailyFromHistory(migrated.secondary.history) },
     }
   }
 

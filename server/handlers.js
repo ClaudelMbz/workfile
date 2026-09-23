@@ -147,6 +147,7 @@ export async function setObjective(id, body) {
       current: sameProvider ? worker.objective.current : null,
       lastCheckedAt: sameProvider ? worker.objective.lastCheckedAt : null,
       history: sameProvider ? worker.objective.history || [] : [],
+      daily: sameProvider ? worker.objective.daily || [] : [],
       secondary: sameProvider ? worker.objective.secondary || null : null,
       status: 'idle',
       error: null,

@@ -7,6 +7,7 @@ import WorkerList from './components/WorkerList'
 import Modal from './components/Modal'
 import ObjectiveModal from './components/ObjectiveModal'
 import Dashboard from './components/Dashboard'
+import GrowthView from './components/GrowthView'
 import ProjectModal from './components/ProjectModal'
 import ConfirmModal from './components/ConfirmModal'
 import WorkflowsPanel from './components/WorkflowsPanel'
@@ -16,6 +17,7 @@ import './App.css'
 const VIEWS = [
   { key: 'workers', label: 'Workers' },
   { key: 'dashboard', label: 'Tableau de bord' },
+  { key: 'growth', label: 'Croissance' },
   { key: 'workflows', label: 'Sauvegardes' },
 ]
 
@@ -159,6 +161,13 @@ export default function App() {
             <p className="page-loading">Chargement…</p>
           ) : (
             <Dashboard workers={workers} objectiveTypes={objectiveTypes} projects={projects} />
+          ))}
+
+        {view === 'growth' &&
+          (loading ? (
+            <p className="page-loading">Chargement…</p>
+          ) : (
+            <GrowthView workers={workers} objectiveTypes={objectiveTypes} projects={projects} />
           ))}
 
         {view === 'workflows' && <WorkflowsPanel />}
