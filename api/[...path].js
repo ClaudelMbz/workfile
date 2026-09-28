@@ -12,7 +12,14 @@ function send(res, { status, body }) {
 }
 
 export default async function handler(req, res) {
-  const segments = [].concat(req.query.path || [])
+  // On préfère parser `req.url` nous-mêmes plutôt que de dépendre de
+  // `req.query.path` (le découpage automatique du nom de fichier
+  // [...path].js) : en prod ça retombait systématiquement sur "Route
+  // inconnue" — req.query.path ne contenait pas ce qu'on attendait pour ce
+  // type de projet. Parser l'URL directement ne dépend d'aucun mécanisme
+  // framework-spécifique.
+  const path = (req.url || '').split('?')[0]
+  const segments = path.split('/').filter((s) => s && s !== 'api')
   const [a, b, c, d] = segments
   const { method } = req
 
