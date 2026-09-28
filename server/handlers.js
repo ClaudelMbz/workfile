@@ -400,3 +400,80 @@ export async function deleteProject(id) {
   })
   return { status: 204, body: null }
 }
+
+// ---- Export / Import (workers + projets, ex. pour passer de local à prod) ----
+
+// Un instantané complet, tel quel — objectifs, historique et daily compris.
+export async function exportData() {
+  const [workers, projects] = await Promise.all([readWorkers(), readProjects()])
+  return { status: 200, body: { exportedAt: new Date().toISOString(), workers, projects } }
+}
+
+// Fusion par id : un id déjà présent est mis à jour sur place, un id inconnu
+// est créé (avec CE id, pas un nouveau) — réimporter plusieurs fois le même
+// fichier ne duplique jamais rien. Les projets passent avant les workers pour
+// que leurs projectId se résolvent bien dès ce même import.
+export async function importData(body) {
+  const workers = Array.isArray(body?.workers) ? body.workers : null
+  const projects = Array.isArray(body?.projects) ? body.projects : null
+  if (!workers || !projects) {
+    return {
+      status: 400,
+      body: { error: 'Fichier invalide : il doit contenir "workers" et "projects" (tableaux).' },
+    }
+  }
+
+  const projectStats = { created: 0, updated: 0, skipped: 0 }
+  await withProjects((existing) => {
+    projects.forEach((p) => {
+      if (!p?.id || !p?.name || !String(p.name).trim()) {
+        projectStats.skipped += 1
+        return
+      }
+      const found = existing.find((x) => x.id === p.id)
+      const color = /^#[0-9a-fA-F]{6}$/.test(p.color || '') ? p.color : '#c084fc'
+      if (found) {
+        found.name = String(p.name).trim()
+        found.color = color
+        projectStats.updated += 1
+      } else {
+        existing.push({
+          id: p.id,
+          name: String(p.name).trim(),
+          color,
+          createdAt: p.createdAt || new Date().toISOString(),
+        })
+        projectStats.created += 1
+      }
+    })
+  })
+
+  const workerStats = { created: 0, updated: 0, skipped: 0 }
+  await withWorkers((existing) => {
+    workers.forEach((w) => {
+      if (!w?.id || !w?.name || !String(w.name).trim()) {
+        workerStats.skipped += 1
+        return
+      }
+      const parsedCost = parseCost(w.cost)
+      const clean = {
+        name: String(w.name).trim(),
+        role: (w.role || '').toString().trim(),
+        email: (w.email || '').toString().trim(),
+        cost: parsedCost.ok ? parsedCost.value : null,
+        projectId: w.projectId || null,
+        objective: w.objective || null,
+      }
+      const found = existing.find((x) => x.id === w.id)
+      if (found) {
+        Object.assign(found, clean)
+        workerStats.updated += 1
+      } else {
+        existing.unshift({ id: w.id, createdAt: w.createdAt || new Date().toISOString(), ...clean })
+        workerStats.created += 1
+      }
+    })
+  })
+
+  return { status: 200, body: { projects: projectStats, workers: workerStats } }
+}

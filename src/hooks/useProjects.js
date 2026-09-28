@@ -51,5 +51,5 @@ export function useProjects() {
     setProjects((prev) => prev.filter((p) => p.id !== id))
   }
 
-  return { projects, loading, addProject, updateProject, removeProject }
+  return { projects, loading, refresh, addProject, updateProject, removeProject }
 }

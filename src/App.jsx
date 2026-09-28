@@ -12,6 +12,7 @@ import ProjectModal from './components/ProjectModal'
 import ConfirmModal from './components/ConfirmModal'
 import WorkflowsPanel from './components/WorkflowsPanel'
 import { runWithConcurrencyLimit } from './utils/concurrency'
+import { API_BASE } from './apiBase'
 import './App.css'
 
 const VIEWS = [
@@ -31,6 +32,7 @@ export default function App() {
     workers,
     loading,
     error,
+    refresh,
     addWorker,
     updateWorker,
     removeWorker,
@@ -40,13 +42,16 @@ export default function App() {
     detachProject,
   } = useWorkers()
   const { objectiveTypes } = useObjectiveTypes()
-  const { projects, addProject, updateProject, removeProject } = useProjects()
+  const { projects, refresh: refreshProjects, addProject, updateProject, removeProject } = useProjects()
   const [view, setView] = useState('workers')
   const [isAddOpen, setAddOpen] = useState(false)
   const [editTarget, setEditTarget] = useState(null) // worker en cours de modification
   const [objectiveTarget, setObjectiveTarget] = useState(null) // worker en cours d'édition d'objectif
   const [projectModal, setProjectModal] = useState(null) // null | 'new' | projet à modifier
   const [projectToDelete, setProjectToDelete] = useState(null)
+  const [importStatus, setImportStatus] = useState(null) // { type: 'success' | 'error', message }
+  const [importing, setImporting] = useState(false)
+  const importInputRef = useRef(null)
 
   // À chaque chargement de la page, on relance immédiatement la mesure de
   // tous les objectifs "automatiques" (pas ceux en saisie manuelle), une
@@ -89,6 +94,52 @@ export default function App() {
     setEditTarget(null)
   }
 
+  // Exporter/importer les workers + projets (objectifs, historique compris)
+  // permet de tester en local puis de reporter tel quel sur le déploiement en
+  // prod, sans tout retaper à la main. Import fusionné par id : réimporter le
+  // même fichier met juste à jour, ça ne duplique rien.
+  async function handleExport() {
+    const res = await fetch(`${API_BASE}/api/export`)
+    const data = await res.json()
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `workers-export-${new Date().toISOString().slice(0, 10)}.json`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+  }
+
+  async function handleImportFile(e) {
+    const file = e.target.files[0]
+    e.target.value = '' // permet de réimporter le même fichier une seconde fois
+    if (!file) return
+
+    setImporting(true)
+    setImportStatus(null)
+    try {
+      const data = JSON.parse(await file.text())
+      const res = await fetch(`${API_BASE}/api/import`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result?.error || `Erreur ${res.status}`)
+      await Promise.all([refresh(), refreshProjects()])
+      setImportStatus({
+        type: 'success',
+        message: `Import réussi — workers : ${result.workers.created} créé(s), ${result.workers.updated} mis à jour · projets : ${result.projects.created} créé(s), ${result.projects.updated} mis à jour.`,
+      })
+    } catch (err) {
+      setImportStatus({ type: 'error', message: `Import impossible : ${err.message}` })
+    } finally {
+      setImporting(false)
+    }
+  }
+
   return (
     <div className="app">
       <header className="app-header">
@@ -114,23 +165,58 @@ export default function App() {
             ))}
           </nav>
         </div>
-        {view === 'workers' && (workers.length > 0 || projects.length > 0) && (
-          <div className="app-header-actions">
-            <button className="btn btn-ghost" onClick={() => setProjectModal('new')} aria-label="Nouveau projet">
-              <span className="btn-add-icon">+</span>
-              Projet
-            </button>
-            <button
-              className="btn btn-primary btn-add"
-              onClick={() => setAddOpen(true)}
-              aria-label="Ajouter un worker"
-            >
-              <span className="btn-add-icon">+</span>
-              Ajouter
-            </button>
-          </div>
-        )}
+        <div className="app-header-actions">
+          <button
+            className="btn btn-ghost btn-icon"
+            onClick={handleExport}
+            title="Exporter les workers et projets (fichier .json)"
+            aria-label="Exporter"
+          >
+            ⬇
+          </button>
+          <button
+            className="btn btn-ghost btn-icon"
+            onClick={() => importInputRef.current?.click()}
+            disabled={importing}
+            title="Importer un fichier .json exporté depuis cette app"
+            aria-label="Importer"
+          >
+            ⬆
+          </button>
+          <input
+            ref={importInputRef}
+            type="file"
+            accept="application/json"
+            hidden
+            onChange={handleImportFile}
+          />
+          {view === 'workers' && (workers.length > 0 || projects.length > 0) && (
+            <>
+              <button className="btn btn-ghost" onClick={() => setProjectModal('new')} aria-label="Nouveau projet">
+                <span className="btn-add-icon">+</span>
+                Projet
+              </button>
+              <button
+                className="btn btn-primary btn-add"
+                onClick={() => setAddOpen(true)}
+                aria-label="Ajouter un worker"
+              >
+                <span className="btn-add-icon">+</span>
+                Ajouter
+              </button>
+            </>
+          )}
+        </div>
       </header>
+
+      {importStatus && (
+        <p className={`import-banner ${importStatus.type}`} role="status">
+          {importStatus.message}
+          <button className="import-banner-close" onClick={() => setImportStatus(null)} aria-label="Fermer">
+            ✕
+          </button>
+        </p>
+      )}
 
       <main className="app-main">
         {view === 'workers' && (

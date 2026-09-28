@@ -84,6 +84,57 @@
   margin-right: 2px;
 }
 
+.btn-icon {
+  padding: 10px;
+  width: 38px;
+  justify-content: center;
+}
+
+.btn-icon:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.import-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  margin: -16px 0 24px;
+  border: 1px solid var(--border);
+  background: var(--code-bg);
+  color: var(--text-h);
+}
+
+.import-banner.error {
+  border-color: rgba(229, 72, 77, 0.4);
+  color: #e5484d;
+}
+
+.import-banner.success {
+  border-color: rgba(22, 163, 74, 0.35);
+}
+
+.import-banner-close {
+  margin-left: auto;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+.import-banner-close:hover {
+  opacity: 1;
+}
+
 /* Buttons */
 
 .btn {

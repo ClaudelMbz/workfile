@@ -46,6 +46,9 @@ app.post('/api/projects', async (req, res) => send(res, await handlers.createPro
 app.put('/api/projects/:id', async (req, res) => send(res, await handlers.updateProject(req.params.id, req.body)))
 app.delete('/api/projects/:id', async (req, res) => send(res, await handlers.deleteProject(req.params.id)))
 
+app.get('/api/export', async (req, res) => send(res, await handlers.exportData()))
+app.post('/api/import', async (req, res) => send(res, await handlers.importData(req.body)))
+
 app.listen(PORT, () => {
   console.log(`API workers en écoute sur http://localhost:${PORT}`)
 })

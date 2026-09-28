@@ -112,6 +112,7 @@ export function useWorkers() {
     workers,
     loading,
     error,
+    refresh,
     addWorker,
     updateWorker,
     removeWorker,
