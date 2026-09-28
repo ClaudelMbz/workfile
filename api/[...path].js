@@ -11,6 +11,12 @@
 // comportait pas comme attendu sur les chemins imbriqués en prod).
 import * as h from '../server/handlers.js'
 
+// Explicite, ne pas laisser Vercel deviner : store.js utilise `fs`/`path`
+// (Node), pas disponibles sur l'Edge Runtime. Sans ce config, la signature à
+// un seul argument (Request -> Response) a fait tourner la fonction sur Edge,
+// donc tout plantait dès l'import de store.js — sur toutes les routes.
+export const config = { runtime: 'nodejs' }
+
 function json({ status, body }) {
   if (body == null) return new Response(null, { status })
   return new Response(JSON.stringify(body), {
