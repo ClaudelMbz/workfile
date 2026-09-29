@@ -1,8 +1,13 @@
 // Point d'entrée unique de l'API sur Vercel. Le plan gratuit ("Hobby") plafonne
 // à 12 fonctions serverless par déploiement — un fichier par route aurait
 // dépassé cette limite dès qu'on ajoute une route de plus. Ce fichier capte
-// tout /api/* (grâce au nom [...path].js) et route en interne vers les mêmes
-// fonctions métier que le serveur Express local (server/handlers.js).
+// tout /api/* et route en interne vers les mêmes fonctions métier que le
+// serveur Express local (server/handlers.js).
+//
+// La capture de /api/* se fait par une réécriture dans vercel.json
+// (/api/:path* -> /api/router?__path=:path*), pas par un nom de fichier
+// [...path].js : hors Next.js, Vercel ne faisait correspondre ce nom qu'à UN
+// segment (/api/workers marchait, /api/workers/<id>/... tombait en 404).
 //
 // Signature Web standard (Request -> Response), celle que Vercel recommande
 // pour les projets hors Next.js : `request.url` est toujours une URL absolue
@@ -31,8 +36,11 @@ function json({ status, body }) {
 // planterait avant le try/catch -> 500 sur toutes les routes. Pour recevoir
 // un vrai `Request` Web, il faut exporter un objet `{ fetch }`.
 async function handler(request) {
-  const { pathname } = new URL(request.url)
-  const segments = pathname.split('/').filter((s) => s && s !== 'api')
+  // `__path` est posé par la réécriture de vercel.json ; selon les cas, Vercel
+  // présente à la fonction l'URL d'origine ou l'URL réécrite, on gère les deux.
+  const url = new URL(request.url)
+  const rawPath = url.searchParams.get('__path') ?? url.pathname
+  const segments = rawPath.split('/').filter((s) => s && s !== 'api' && s !== 'router')
   const [a, b, c, d] = segments
   const { method } = request
 
