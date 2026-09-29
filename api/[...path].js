@@ -25,7 +25,12 @@ function json({ status, body }) {
   })
 }
 
-export default async function handler(request) {
+// Sur le runtime Node.js de Vercel, un `export default function` est toujours
+// traité comme l'ancienne signature (req, res) : `request` serait alors un
+// IncomingMessage dont `url` est relative ("/api/workers"), et `new URL(...)`
+// planterait avant le try/catch -> 500 sur toutes les routes. Pour recevoir
+// un vrai `Request` Web, il faut exporter un objet `{ fetch }`.
+async function handler(request) {
   const { pathname } = new URL(request.url)
   const segments = pathname.split('/').filter((s) => s && s !== 'api')
   const [a, b, c, d] = segments
@@ -105,3 +110,5 @@ export default async function handler(request) {
     return json({ status: 500, body: { error: err.message || 'Erreur serveur.' } })
   }
 }
+
+export default { fetch: handler }
