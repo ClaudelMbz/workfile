@@ -93,15 +93,24 @@ export function useWorkers() {
     )
     // On gère la réponse nous-mêmes : même en cas d'échec (502), l'API renvoie
     // le worker avec objective.error rempli, qu'on veut quand même afficher.
-    const res = await fetch(`${API_BASE}/api/workers/${id}/objective/refresh`, { method: 'POST' })
-    const worker = await res.json().catch(() => null)
-    if (worker) {
-      setWorkers((prev) => prev.map((w) => (w.id === id ? worker : w)))
+    // Mais une réponse JSON n'est pas forcément un worker : une 400/404 renvoie
+    // { error } (ex. worker supprimé pendant le refresh). La prendre pour un
+    // worker remplaçait la carte par un objet sans nom ni id -> plantage.
+    let body = null
+    try {
+      const res = await fetch(`${API_BASE}/api/workers/${id}/objective/refresh`, { method: 'POST' })
+      body = await res.json().catch(() => null)
+    } catch {
+      // réseau coupé : traité comme une réponse vide ci-dessous
+    }
+    if (body?.id === id) {
+      setWorkers((prev) => prev.map((w) => (w.id === id ? body : w)))
     } else {
+      const message = body?.error || 'Erreur réseau.'
       setWorkers((prev) =>
         prev.map((w) =>
           w.id === id && w.objective
-            ? { ...w, objective: { ...w.objective, status: 'error', error: 'Erreur réseau.' } }
+            ? { ...w, objective: { ...w.objective, status: 'error', error: message } }
             : w
         )
       )
