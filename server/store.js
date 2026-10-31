@@ -223,3 +223,15 @@ export async function readProjects() {
 export function withProjects(mutate) {
   return withProjectsQueue('projects', mutate)
 }
+
+// Checklist (pense-bête "ce qu'il reste à faire") : même mécanique de
+// stockage, dans sa propre collection.
+const withTodosQueue = makeQueue()
+
+export async function readTodos() {
+  return readCollection('todos')
+}
+
+export function withTodos(mutate) {
+  return withTodosQueue('todos', mutate)
+}

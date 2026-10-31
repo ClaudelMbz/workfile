@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useWorkers } from './hooks/useWorkers'
 import { useObjectiveTypes } from './hooks/useObjectiveTypes'
 import { useProjects } from './hooks/useProjects'
+import { useTodos } from './hooks/useTodos'
 import WorkerForm from './components/WorkerForm'
 import WorkerList from './components/WorkerList'
 import Modal from './components/Modal'
@@ -11,6 +12,7 @@ import GrowthView from './components/GrowthView'
 import ProjectModal from './components/ProjectModal'
 import ConfirmModal from './components/ConfirmModal'
 import WorkflowsPanel from './components/WorkflowsPanel'
+import ChecklistPanel from './components/ChecklistPanel'
 import { runWithConcurrencyLimit } from './utils/concurrency'
 import { API_BASE } from './apiBase'
 import './App.css'
@@ -43,6 +45,11 @@ export default function App() {
   } = useWorkers()
   const { objectiveTypes } = useObjectiveTypes()
   const { projects, refresh: refreshProjects, addProject, updateProject, removeProject } = useProjects()
+  const todosState = useTodos()
+  const [isChecklistOpen, setChecklistOpen] = useState(false)
+  // Stable : le panneau s'en sert comme dépendance d'effet (focus, Échap).
+  const closeChecklist = useCallback(() => setChecklistOpen(false), [])
+  const remainingTodos = todosState.todos.filter((t) => !t.done).length
   const [view, setView] = useState('workers')
   const [isAddOpen, setAddOpen] = useState(false)
   const [editTarget, setEditTarget] = useState(null) // worker en cours de modification
@@ -166,6 +173,18 @@ export default function App() {
           </nav>
         </div>
         <div className="app-header-actions">
+          <button
+            className={`btn btn-ghost btn-icon checklist-toggle${isChecklistOpen ? ' active' : ''}`}
+            onClick={() => setChecklistOpen((o) => !o)}
+            title="Checklist : ce qu'il reste à faire"
+            aria-label="Checklist"
+            aria-expanded={isChecklistOpen}
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M3 6l1.5 1.5L7 5M3 12l1.5 1.5L7 11M3 18l1.5 1.5L7 17M11 6h10M11 12h10M11 18h10" />
+            </svg>
+            {remainingTodos > 0 && <span className="checklist-badge">{remainingTodos}</span>}
+          </button>
           <button
             className="btn btn-ghost btn-icon"
             onClick={handleExport}
@@ -294,6 +313,17 @@ export default function App() {
           onClose={() => setProjectToDelete(null)}
         />
       )}
+
+      <ChecklistPanel
+        open={isChecklistOpen}
+        onClose={closeChecklist}
+        todos={todosState.todos}
+        loading={todosState.loading}
+        error={todosState.error}
+        onAdd={todosState.addTodo}
+        onUpdate={todosState.updateTodo}
+        onRemove={todosState.removeTodo}
+      />
 
       {objectiveTarget && (
         <ObjectiveModal

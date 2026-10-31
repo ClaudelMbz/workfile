@@ -12,6 +12,8 @@ import {
   withWorkflows,
   readProjects,
   withProjects,
+  readTodos,
+  withTodos,
 } from './store.js'
 import { listProviders, getProvider } from './providers/index.js'
 
@@ -398,6 +400,63 @@ export async function deleteProject(id) {
       if (w.projectId === id) w.projectId = null
     })
   })
+  return { status: 204, body: null }
+}
+
+// ---- Checklist (ce qu'il reste à faire) ----
+
+const MAX_TODO_LENGTH = 500
+
+export async function listTodos() {
+  return { status: 200, body: await readTodos() }
+}
+
+export async function createTodo(body) {
+  const text = typeof body?.text === 'string' ? body.text.trim() : ''
+  if (!text) return { status: 400, body: { error: 'Le texte est obligatoire.' } }
+  if (text.length > MAX_TODO_LENGTH) {
+    return { status: 400, body: { error: `${MAX_TODO_LENGTH} caractères maximum.` } }
+  }
+
+  const todo = { id: randomUUID(), text, done: false, createdAt: new Date().toISOString() }
+  await withTodos((todos) => {
+    todos.push(todo)
+  })
+  return { status: 201, body: todo }
+}
+
+// Mise à jour partielle : on peut cocher/décocher (`done`) et/ou renommer
+// (`text`) sans renvoyer l'autre champ.
+export async function updateTodo(id, body) {
+  const patch = {}
+  if (body?.done !== undefined) patch.done = !!body.done
+  if (body?.text !== undefined) {
+    const text = typeof body.text === 'string' ? body.text.trim() : ''
+    if (!text) return { status: 400, body: { error: 'Le texte est obligatoire.' } }
+    if (text.length > MAX_TODO_LENGTH) {
+      return { status: 400, body: { error: `${MAX_TODO_LENGTH} caractères maximum.` } }
+    }
+    patch.text = text
+  }
+
+  const updated = await withTodos((todos) => {
+    const todo = todos.find((t) => t.id === id)
+    if (!todo) return null
+    Object.assign(todo, patch)
+    return todo
+  })
+  if (!updated) return { status: 404, body: { error: 'Élément introuvable.' } }
+  return { status: 200, body: updated }
+}
+
+export async function deleteTodo(id) {
+  const found = await withTodos((todos) => {
+    const idx = todos.findIndex((t) => t.id === id)
+    if (idx === -1) return false
+    todos.splice(idx, 1)
+    return true
+  })
+  if (!found) return { status: 404, body: { error: 'Élément introuvable.' } }
   return { status: 204, body: null }
 }
 

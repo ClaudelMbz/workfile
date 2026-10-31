@@ -75,6 +75,16 @@ async function handler(request) {
       }
     }
 
+    if (a === 'todos') {
+      if (!b) {
+        if (method === 'GET') return json(await h.listTodos())
+        if (method === 'POST') return json(await h.createTodo(body))
+      } else if (!c) {
+        if (method === 'PATCH') return json(await h.updateTodo(b, body))
+        if (method === 'DELETE') return json(await h.deleteTodo(b))
+      }
+    }
+
     if (a === 'workers') {
       if (!b) {
         if (method === 'GET') return json(await h.getWorkers())
