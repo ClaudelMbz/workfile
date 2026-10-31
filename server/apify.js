@@ -108,3 +108,60 @@ export async function fetchInstagramProfileStats(profileUrl) {
     postsCount: typeof profile.postsCount === 'number' ? profile.postsCount : null,
   }
 }
+
+// Actor "apify/facebook-pages-scraper" (l'officiel Apify) : une seule entrée
+// par page, avec `followers` et `likes` déjà en nombres entiers (pas de
+// "17M" arrondi comme certains scrapers tiers). Facturé à la page.
+export async function fetchFacebookPageStats(pageUrl) {
+  const items = await apifyRunSync('apify~facebook-pages-scraper', {
+    startUrls: [{ url: pageUrl }],
+  })
+
+  if (!Array.isArray(items) || items.length === 0) {
+    throw new Error(
+      `Aucune donnée retournée pour "${pageUrl}" — vérifie que la page Facebook existe et est publique.`
+    )
+  }
+
+  const page = items[0]
+  if (!page || typeof page.followers !== 'number') {
+    throw new Error(
+      "Réponse Apify inattendue : le nombre de followers est introuvable (profil personnel ou page à accès restreint ?)."
+    )
+  }
+
+  return {
+    followers: page.followers,
+    likes: typeof page.likes === 'number' ? page.likes : null,
+  }
+}
+
+// Actor "epctex/pinterest-scraper" (pas d'officiel Apify pour Pinterest ;
+// celui-ci est le plus utilisé et bien noté). Sur une URL de profil, avec
+// includeUserInfoOnly, il renvoie un seul élément `type: "user"` contenant
+// follower_count et pin_count — facturé ~0,003 $ par profil, sans les
+// épingles ni les tableaux.
+export async function fetchPinterestProfileStats(profileUrl) {
+  const items = await apifyRunSync('epctex~pinterest-scraper', {
+    startUrls: [profileUrl],
+    includeUserInfoOnly: true,
+    getDetails: false,
+    maxItems: 1,
+  })
+
+  if (!Array.isArray(items) || items.length === 0) {
+    throw new Error(
+      `Aucune donnée retournée pour "${profileUrl}" — vérifie que le profil Pinterest existe et est public.`
+    )
+  }
+
+  const user = items.find((i) => i?.type === 'user') || items[0]
+  if (!user || typeof user.follower_count !== 'number') {
+    throw new Error('Réponse Apify inattendue : le nombre de followers est introuvable.')
+  }
+
+  return {
+    followers: user.follower_count,
+    pinCount: typeof user.pin_count === 'number' ? user.pin_count : null,
+  }
+}

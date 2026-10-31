@@ -80,6 +80,10 @@ function shortenValue(value) {
   if (typeof value !== 'string' || !/^https?:\/\//.test(value)) return value
   try {
     const u = new URL(value)
+    // Pages Facebook sans nom d'utilisateur : facebook.com/profile.php?id=…
+    // — le chemin seul ("profile.php") ne dit rien, l'identifiant si.
+    const id = u.searchParams.get('id')
+    if (/^\/?profile\.php$/.test(u.pathname) && id) return `id ${id}`
     return u.pathname.replace(/^\//, '') || u.hostname
   } catch {
     return value
