@@ -158,7 +158,7 @@ export default function LineChart({ buckets, series, mode, height = 320 }) {
                 cy={y(s.display[n - 1])}
                 r="4"
                 fill={s.color}
-                stroke="var(--bg)"
+                stroke="var(--surface)"
                 strokeWidth="2"
               />
             ) : null
@@ -175,7 +175,7 @@ export default function LineChart({ buckets, series, mode, height = 320 }) {
               <line x1={x(hover)} x2={x(hover)} y1={MARGIN.top} y2={MARGIN.top + plotH} stroke="var(--text)" strokeWidth="1" opacity="0.5" />
               {series.map((s) =>
                 s.display[hover] != null ? (
-                  <circle key={s.id} cx={x(hover)} cy={y(s.display[hover])} r="4" fill={s.color} stroke="var(--bg)" strokeWidth="2" />
+                  <circle key={s.id} cx={x(hover)} cy={y(s.display[hover])} r="4" fill={s.color} stroke="var(--surface)" strokeWidth="2" />
                 ) : null
               )}
             </g>

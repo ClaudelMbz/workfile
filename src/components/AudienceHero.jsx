@@ -65,12 +65,14 @@ export default function AudienceHero({ workers, objectiveTypes }) {
         <div className="audience-hero-value">{formatNumber(audience.total)}</div>
 
         <div className="audience-hero-change">
+          {audience.pct != null && trend !== 'flat' && (
+            <span className={`audience-hero-pct ${trend}`}>
+              {trend === 'up' ? '▲ +' : '▼ '}
+              {audience.pct.toFixed(1).replace('.', ',')} %
+            </span>
+          )}
           <span className={`audience-hero-delta ${trend}`}>
-            {trend === 'up' ? '▲ +' : trend === 'down' ? '▼ ' : ''}
-            {trend === 'flat' ? '– stable' : formatNumber(audience.gain)}
-            {audience.pct != null && trend !== 'flat' && (
-              <> ({audience.gain > 0 ? '+' : ''}{audience.pct.toFixed(1).replace('.', ',')} %)</>
-            )}
+            {trend === 'flat' ? '– stable' : `${trend === 'up' ? '+' : ''}${formatNumber(audience.gain)}`}
           </span>
           <span className="audience-hero-since">
             {period.since} · avant : {formatNumber(audience.before)}

@@ -1,24 +1,41 @@
 /* Thème forcé en sombre en permanence — plus de bascule automatique selon
-   le système, l'app rend toujours ainsi peu importe le réglage du visiteur. */
-:root {
-  --text: #9ca3af;
-  --text-h: #f3f4f6;
-  --bg: #16171d;
-  --border: #2e303a;
-  --code-bg: #1f2028;
-  --accent: #c084fc;
-  --accent-bg: rgba(192, 132, 252, 0.15);
-  --accent-border: rgba(192, 132, 252, 0.5);
-  --social-bg: rgba(47, 48, 58, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
+   le système, l'app rend toujours ainsi peu importe le réglage du visiteur.
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
+   Trois niveaux de profondeur : --bg (la page, presque noire, avec des halos
+   de couleur), --surface (les cartes), --surface-2 (ce qui est posé DANS une
+   carte : champs, pistes de barre, onglets). --code-bg reste un alias de
+   --surface-2 pour le code existant. */
+:root {
+  --text: #a3a3b8;
+  --text-h: #f5f5fa;
+  --bg: #0a0a10;
+  --surface: #13131c;
+  --surface-2: #1b1b27;
+  --code-bg: var(--surface-2);
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --spark: #6c6c88;
+
+  --accent: #b388ff;
+  --accent-2: #7c8cff;
+  --accent-grad: linear-gradient(135deg, #c084fc 0%, #818cf8 100%);
+  --accent-bg: rgba(179, 136, 255, 0.14);
+  --accent-border: rgba(179, 136, 255, 0.5);
+  --accent-glow: 0 8px 28px -8px rgba(160, 120, 255, 0.55);
+
+  --success: #22c55e;
+  --danger: #f43f5e;
+
+  --social-bg: rgba(47, 48, 58, 0.5);
+  --shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 18px 40px -18px rgba(0, 0, 0, 0.7);
+  --shadow-lg: 0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 30px 60px -20px rgba(0, 0, 0, 0.8);
+
+  --sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --heading: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
   --mono: ui-monospace, Consolas, monospace;
 
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
+  font: 16px/1.5 var(--sans);
+  letter-spacing: 0;
   color-scheme: dark;
   color: var(--text);
   background: var(--bg);
@@ -26,10 +43,6 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
 }
 
 #social .button-icon {
@@ -38,6 +51,17 @@
 
 body {
   margin: 0;
+  min-height: 100svh;
+  background:
+    radial-gradient(900px 500px at 12% -10%, rgba(147, 97, 255, 0.16), transparent 60%),
+    radial-gradient(700px 420px at 95% 0%, rgba(80, 120, 255, 0.12), transparent 60%),
+    var(--bg);
+  background-attachment: fixed;
+}
+
+::selection {
+  background: rgba(179, 136, 255, 0.35);
+  color: #fff;
 }
 
 #root {
@@ -53,16 +77,21 @@ body {
   box-sizing: border-box;
 }
 
+:focus-visible {
+  outline: 2px solid var(--accent-border);
+  outline-offset: 2px;
+}
+
 h1,
 h2 {
   font-family: var(--heading);
-  font-weight: 500;
+  font-weight: 700;
   color: var(--text-h);
 }
 
 h1 {
   font-size: 56px;
-  letter-spacing: -1.68px;
+  letter-spacing: -1.5px;
   margin: 32px 0;
   @media (max-width: 1024px) {
     font-size: 36px;
@@ -72,7 +101,7 @@ h1 {
 h2 {
   font-size: 24px;
   line-height: 118%;
-  letter-spacing: -0.24px;
+  letter-spacing: -0.4px;
   margin: 0 0 8px;
   @media (max-width: 1024px) {
     font-size: 20px;

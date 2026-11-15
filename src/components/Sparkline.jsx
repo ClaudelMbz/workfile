@@ -1,6 +1,6 @@
-// Mini graphique de tendance : ligne fine en gris (couleur de bordure du
-// thème), dernier point mis en avant en accent — pas d'axes, pas de grille,
-// c'est un sparkline. `data` : [{ value, at }], du plus ancien au plus récent.
+// Mini graphique de tendance : ligne fine en gris (--spark), dernier point
+// mis en avant en accent — pas d'axes, pas de grille, c'est un sparkline.
+// `data` : [{ value, at }], du plus ancien au plus récent.
 export default function Sparkline({ data, width = 100, height = 28 }) {
   if (!data || data.length < 2) return null
 
@@ -32,8 +32,8 @@ export default function Sparkline({ data, width = 100, height = 28 }) {
       aria-label={label}
     >
       <title>{label}</title>
-      <path d={pathD} fill="none" stroke="var(--border)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx={lastX} cy={lastY} r="3" fill="var(--accent)" stroke="var(--bg)" strokeWidth="2" />
+      <path d={pathD} fill="none" stroke="var(--spark)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={lastX} cy={lastY} r="3" fill="var(--accent)" stroke="var(--surface)" strokeWidth="2" />
     </svg>
   )
 }

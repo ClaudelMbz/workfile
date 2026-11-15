@@ -152,14 +152,21 @@ export default function App() {
     <div className="app">
       <header className="app-header">
         <div className="app-header-left">
-          <div>
-            <h1>Workers</h1>
-            {view === 'workers' && (
-              <p>
-                {workers.length} worker{workers.length !== 1 ? 's' : ''} enregistré
-                {workers.length !== 1 ? 's' : ''}
-              </p>
-            )}
+          <div className="app-brand">
+            <div className="app-logo" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 17l5-5 4 4 8-8M14 8h6v6" />
+              </svg>
+            </div>
+            <div>
+              <h1>Workers</h1>
+              {view === 'workers' && (
+                <p>
+                  {workers.length} worker{workers.length !== 1 ? 's' : ''} enregistré
+                  {workers.length !== 1 ? 's' : ''}
+                </p>
+              )}
+            </div>
           </div>
           <nav className="app-nav">
             {VIEWS.map((v) => (

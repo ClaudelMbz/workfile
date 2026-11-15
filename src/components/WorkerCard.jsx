@@ -2,15 +2,17 @@ import { useState } from 'react'
 import ConfirmModal from './ConfirmModal'
 import Sparkline from './Sparkline'
 
+// Pastilles d'avatar pensées pour le thème sombre : fond teinté translucide,
+// initiales dans la couleur vive.
 const PALETTE = [
-  { bg: '#eef2ff', fg: '#4f46e5' },
-  { bg: '#fdf2f8', fg: '#db2777' },
-  { bg: '#f0fdfa', fg: '#0d9488' },
-  { bg: '#fff7ed', fg: '#c2410c' },
-  { bg: '#f0fdf4', fg: '#16a34a' },
-  { bg: '#faf5ff', fg: '#9333ea' },
-  { bg: '#fefce8', fg: '#a16207' },
-  { bg: '#eff6ff', fg: '#2563eb' },
+  { bg: 'rgba(129, 140, 248, 0.16)', fg: '#a5b4fc' },
+  { bg: 'rgba(244, 114, 182, 0.16)', fg: '#f9a8d4' },
+  { bg: 'rgba(45, 212, 191, 0.16)', fg: '#5eead4' },
+  { bg: 'rgba(251, 146, 60, 0.16)', fg: '#fdba74' },
+  { bg: 'rgba(74, 222, 128, 0.16)', fg: '#86efac' },
+  { bg: 'rgba(192, 132, 252, 0.16)', fg: '#d8b4fe' },
+  { bg: 'rgba(250, 204, 21, 0.16)', fg: '#fde047' },
+  { bg: 'rgba(96, 165, 250, 0.16)', fg: '#93c5fd' },
 ]
 
 function initials(name) {
@@ -230,7 +232,7 @@ export default function WorkerCard({
   const [confirmingDelete, setConfirmingDelete] = useState(false)
 
   return (
-    <div className="worker-card">
+    <div className="worker-card" data-platform={worker.objective?.providerId}>
       <div className="worker-card-actions">
         <button
           className="worker-action"
