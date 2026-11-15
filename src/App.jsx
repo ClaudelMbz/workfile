@@ -13,6 +13,7 @@ import ProjectModal from './components/ProjectModal'
 import ConfirmModal from './components/ConfirmModal'
 import WorkflowsPanel from './components/WorkflowsPanel'
 import ChecklistPanel from './components/ChecklistPanel'
+import AudienceHero from './components/AudienceHero'
 import { runWithConcurrencyLimit } from './utils/concurrency'
 import { API_BASE } from './apiBase'
 import './App.css'
@@ -244,19 +245,22 @@ export default function App() {
             {loading ? (
               <p className="page-loading">Chargement…</p>
             ) : (
-              <WorkerList
-                workers={workers}
-                projects={projects}
-                onEditProject={setProjectModal}
-                onDeleteProject={setProjectToDelete}
-                onRemove={removeWorker}
-                onEdit={setEditTarget}
-                onAddClick={() => setAddOpen(true)}
-                objectiveTypes={objectiveTypes}
-                onEditObjective={setObjectiveTarget}
-                onRefreshObjective={refreshObjective}
-                onUpdateObjectiveValue={updateObjectiveValue}
-              />
+              <>
+                <AudienceHero workers={workers} objectiveTypes={objectiveTypes} />
+                <WorkerList
+                  workers={workers}
+                  projects={projects}
+                  onEditProject={setProjectModal}
+                  onDeleteProject={setProjectToDelete}
+                  onRemove={removeWorker}
+                  onEdit={setEditTarget}
+                  onAddClick={() => setAddOpen(true)}
+                  objectiveTypes={objectiveTypes}
+                  onEditObjective={setObjectiveTarget}
+                  onRefreshObjective={refreshObjective}
+                  onUpdateObjectiveValue={updateObjectiveValue}
+                />
+              </>
             )}
           </>
         )}

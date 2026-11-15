@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { computeStats, summarizeWorkers } from '../utils/stats'
+import AudienceHero from './AudienceHero'
 
 function formatNumber(n) {
   return new Intl.NumberFormat('fr-FR').format(Math.round(n))
@@ -92,6 +93,8 @@ export default function Dashboard({ workers, objectiveTypes, projects = [] }) {
   return (
     <div className="dashboard">
       {filter}
+
+      <AudienceHero workers={filteredWorkers} objectiveTypes={objectiveTypes} />
 
       <div className="kpi-row">
         {summary.platforms.map((p) => (

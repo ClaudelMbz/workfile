@@ -1671,3 +1671,131 @@
     opacity: 1;
   }
 }
+
+/* ---- Audience totale (le grand chiffre, tous réseaux confondus) ---- */
+
+.audience-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 32px;
+  padding: 28px 32px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: linear-gradient(135deg, var(--accent-bg), transparent 60%), var(--code-bg);
+}
+
+.audience-hero-main {
+  min-width: 0;
+}
+
+.audience-hero-top {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.audience-hero-label {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.audience-hero-periods {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 9px;
+  background: var(--bg);
+}
+
+.audience-hero-periods button {
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+
+.audience-hero-periods button:hover {
+  color: var(--text-h);
+}
+
+.audience-hero-periods button.active {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.audience-hero-value {
+  margin: 6px 0 4px;
+  color: var(--text-h);
+  font-family: var(--heading);
+  font-size: clamp(52px, 10vw, 96px);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -2px;
+  font-variant-numeric: tabular-nums;
+}
+
+.audience-hero-change {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.audience-hero-delta {
+  font-size: 22px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.audience-hero-delta.up {
+  color: #16a34a;
+}
+
+.audience-hero-delta.down {
+  color: #e5484d;
+}
+
+.audience-hero-since {
+  color: var(--text);
+  font-size: 14px;
+}
+
+.audience-hero-note {
+  margin-top: 10px;
+  color: var(--text);
+  font-size: 13px;
+  opacity: 0.8;
+}
+
+.audience-hero-chart {
+  flex-shrink: 0;
+}
+
+.audience-hero-chart .sparkline {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+@media (max-width: 720px) {
+  .audience-hero {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 22px 20px;
+  }
+
+  .audience-hero-chart .sparkline {
+    width: 100%;
+  }
+}
